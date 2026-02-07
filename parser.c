@@ -10,7 +10,7 @@
 #define VARIABLE_NAME_LENGTH 50
 
 #define NUMBER_OF_KEYWORDS 2
-#define NUMBER_OF_OPERATORS 2
+#define NUMBER_OF_OPERATORS 5
 #define NUMBER_OF_SYMBOLS 3
 #define MAX_VARIABLES 100
 
@@ -47,7 +47,7 @@ void parsePrint();
 int parseExpression();
 
 char *keywords[] = {"int", "print"};
-char *operators[] = {"+", "="};
+char *operators[] = {"+", "=", "-", "*", "/"};
 char *symbols[] = {"(", ")", ";"};
 
 Token tokens[NUMBER_OF_TOKENS];
