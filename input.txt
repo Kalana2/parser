@@ -1,4 +1,4 @@
-int y = 5 ;
+int y= 5; 
 int x = 20 ;
-int z = x + y ;
-print ( z ) ;
+int z = x + y;
+print(45)

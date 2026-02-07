@@ -27,12 +27,16 @@ typedef struct
     int isInitialized;
 } Variable;
 
-void tokenize(FILE *file);
 int isKeyword(char *str);
 int isOperator(char *str);
 int isSymbol(char *str);
 int isIdentifier(char *str);
 int isNumber(char *str);
+void addVariable(char *name, int value, int isInitialized);
+void setVariableValue(char *name, int value);
+int lookupVariable(char *name);
+void tokenize(FILE *file);
+void printTokens();
 void expect(char *type, char *value);
 void parseProgram();
 void parseStatementList();
@@ -41,9 +45,6 @@ void parseDeclaration();
 void parseAssign();
 void parsePrint();
 int parseExpression();
-int lookupVariable(char *name);
-void addVariable(char *name, int value, int isInitialized);
-void setVariableValue(char *name, int value);
 
 char *keywords[] = {"int", "print"};
 char *operators[] = {"+", "="};
@@ -68,17 +69,9 @@ int main(int argc, char *argv[])
         perror("Error opening file");
         return 1;
     }
-
     tokenize(file);
-
-    for (int i = 0; i < NUMBER_OF_TOKENS; i++)
-    {
-        if (tokens[i].type[0] != '\0')
-        {
-            printf("Token: %-15s Value: %s\n", tokens[i].type, tokens[i].value);
-        }
-    }
-
+    printTokens();
+    parseProgram();
     fclose(file);
     return 0;
 }
@@ -211,47 +204,80 @@ int lookupVariable(char *name)
 
 void tokenize(FILE *file)
 {
-    char line[LINE_LENGTH];
-    char *token;
-    int tokenIndex = 0;
+    char ch;
+    char buffer[TOKEN_VALUE_LENGTH];
+    int bufferIndex = 0;
 
-    while (fgets(line, sizeof(line), file) != NULL && tokenIndex < NUMBER_OF_TOKENS)
+    while ((ch = fgetc(file)) != EOF && tokenCount < NUMBER_OF_TOKENS)
     {
-        token = strtok(line, " \t\n");
-        while (token != NULL && tokenIndex < NUMBER_OF_TOKENS)
+
+        if (isspace(ch))
+            continue;
+
+        // check for keywords and identifiers
+        if (isalpha(ch) || ch == '_')
         {
-            if (isKeyword(token))
-            {
-                strcpy(tokens[tokenIndex].type, "KEYWORD");
-            }
-            else if (isOperator(token))
-            {
-                strcpy(tokens[tokenIndex].type, "OPERATOR");
-            }
-            else if (isSymbol(token))
-            {
-                strcpy(tokens[tokenIndex].type, "SYMBOL");
-            }
-            else if (isIdentifier(token))
-            {
-                strcpy(tokens[tokenIndex].type, "IDENTIFIER");
-            }
-            else if (isNumber(token))
-            {
-                strcpy(tokens[tokenIndex].type, "NUMBER");
-            }
+            bufferIndex = 0;
+            buffer[bufferIndex++] = ch;
+
+            while (isalpha((ch = fgetc(file))) || isdigit(ch) || ch == '_')
+                buffer[bufferIndex++] = ch;
+
+            buffer[bufferIndex] = '\0';
+            ungetc(ch, file);
+
+            if (isKeyword(buffer))
+                strcpy(tokens[tokenCount].type, "KEYWORD");
             else
-            {
-                strcpy(tokens[tokenIndex].type, "UNKNOWN TOKEN");
-            }
+                strcpy(tokens[tokenCount].type, "IDENTIFIER");
 
-            strncpy(tokens[tokenIndex].value, token, TOKEN_VALUE_LENGTH - 1);
-            tokens[tokenIndex].value[TOKEN_VALUE_LENGTH - 1] = '\0';
-
-            token = strtok(NULL, " \t\n");
-            tokenIndex++;
+            strcpy(tokens[tokenCount].value, buffer);
             tokenCount++;
         }
+
+        // check for numbers
+        else if (isdigit(ch))
+        {
+            bufferIndex = 0;
+            buffer[bufferIndex++] = ch;
+
+            while (isdigit((ch = fgetc(file))))
+                buffer[bufferIndex++] = ch;
+
+            buffer[bufferIndex] = '\0';
+            ungetc(ch, file);
+
+            strcpy(tokens[tokenCount].type, "NUMBER");
+            strcpy(tokens[tokenCount].value, buffer);
+            tokenCount++;
+        }
+
+        else
+        {
+            buffer[0] = ch;
+            buffer[1] = '\0';
+
+            if (isOperator(buffer))
+                strcpy(tokens[tokenCount].type, "OPERATOR");
+            else if (isSymbol(buffer))
+                strcpy(tokens[tokenCount].type, "SYMBOL");
+            else
+            {
+                printf("Error: Unrecognized token '%s'\n", buffer);
+                exit(1);
+            }
+
+            strcpy(tokens[tokenCount].value, buffer);
+            tokenCount++;
+        }
+    }
+}
+
+void printTokens()
+{
+    for (int i = 0; i < tokenCount; i++)
+    {
+        printf("Token %d: Type = %s, Value = %s\n", i, tokens[i].type, tokens[i].value);
     }
 }
 
@@ -261,7 +287,7 @@ void expect(char *type, char *value)
     {
         if (strcmp(tokens[currentTokenIndex].type, type) != 0)
         {
-            printf("Syntax Error: Unexpected token %s\n", tokens[currentTokenIndex]);
+            printf("Syntax Error: Unexpected token %s\n", tokens[currentTokenIndex].value);
             exit(1);
         }
         if (strcmp(tokens[currentTokenIndex].value, value) != 0)
@@ -280,7 +306,7 @@ void parseProgram()
 
     if (currentTokenIndex < tokenCount)
     {
-        printf("Syntax Error: Unexpected token '%s'\n");
+        printf("Syntax Error: Unexpected token '%s'\n", tokens[currentTokenIndex].value);
         exit(1);
     }
 }
@@ -290,11 +316,6 @@ void parseStatementList()
     while (currentTokenIndex < tokenCount)
     {
         parseStatement();
-    }
-
-    if (currentTokenIndex < tokenCount)
-    {
-        parseStatementList();
     }
 }
 
@@ -323,11 +344,15 @@ void parsePrint()
 {
     expect("KEYWORD", "print");
     expect("SYMBOL", "(");
+
+    char varName[VARIABLE_NAME_LENGTH];
+    strncpy(varName, tokens[currentTokenIndex].value, VARIABLE_NAME_LENGTH - 1);
+
     expect("IDENTIFIER", tokens[currentTokenIndex].value);
     expect("SYMBOL", ")");
     expect("SYMBOL", ";");
 
-    printf("%d\n", lookupVariable(tokens[currentTokenIndex - 3].value));
+    printf("%d\n", lookupVariable(varName));
 }
 
 void parseDeclaration()
@@ -365,4 +390,30 @@ void parseAssign()
 
 int parseExpression()
 {
+    int leftValue;
+
+    if (strcmp(tokens[currentTokenIndex].type, "NUMBER") == 0)
+    {
+        leftValue = atoi(tokens[currentTokenIndex].value);
+        expect("NUMBER", tokens[currentTokenIndex].value);
+    }
+    else if (strcmp(tokens[currentTokenIndex].type, "IDENTIFIER") == 0)
+    {
+        leftValue = lookupVariable(tokens[currentTokenIndex].value);
+        expect("IDENTIFIER", tokens[currentTokenIndex].value);
+    }
+    else
+    {
+        printf("Syntax Error: Expected number or identifier\n");
+        exit(1);
+    }
+
+    if (currentTokenIndex < tokenCount && strcmp(tokens[currentTokenIndex].value, "+") == 0)
+    {
+        expect("OPERATOR", "+");
+        int rightValue = parseExpression();
+        return leftValue + rightValue;
+    }
+
+    return leftValue;
 }
