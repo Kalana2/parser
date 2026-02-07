@@ -340,9 +340,7 @@ void parseDeclaration()
     if (currentTokenIndex < tokenCount && strcmp(tokens[currentTokenIndex].value, "=") == 0)
     {
         expect("OPERATOR", "=");
-        currentTokenIndex++;
-        expect("NUMBER", tokens[currentTokenIndex].value);
-        int value = atoi(tokens[currentTokenIndex].value);
+        int value = parseExpression();
         addVariable(varName, value, 1);
     }
     else
@@ -354,9 +352,11 @@ void parseDeclaration()
 
 void parseAssign()
 {
-    expect("IDENTIFIER", tokens[currentTokenIndex].value);
+
     char varName[VARIABLE_NAME_LENGTH];
     strncpy(varName, tokens[currentTokenIndex].value, VARIABLE_NAME_LENGTH - 1);
+
+    expect("IDENTIFIER", tokens[currentTokenIndex].value);
     expect("OPERATOR", "=");
     int value = parseExpression();
     setVariableValue(varName, value);
@@ -365,28 +365,4 @@ void parseAssign()
 
 int parseExpression()
 {
-    if (strcmp(tokens[currentTokenIndex].type, "NUMBER") == 0)
-    {
-        int value = atoi(tokens[currentTokenIndex].value);
-        currentTokenIndex++;
-        return value;
-    }
-    else if (strcmp(tokens[currentTokenIndex].type, "IDENTIFIER") == 0)
-    {
-        int value = lookupVariable(tokens[currentTokenIndex].value);
-        currentTokenIndex++;
-        return value;
-    }
-    else if (strcmp(tokens[currentTokenIndex].value, "+") == 0)
-    {
-        currentTokenIndex++;
-        int leftValue = parseExpression();
-        int rightValue = parseExpression();
-        return leftValue + rightValue;
-    }
-    else
-    {
-        printf("Syntax Error: Invalid expression\n");
-        exit(1);
-    }
 }
