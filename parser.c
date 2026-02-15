@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     tokenize(file);
-    printTokens();
+    // printTokens();
     parseProgram();
     fclose(file);
     return 0;
